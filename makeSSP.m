@@ -27,25 +27,26 @@ close all
 %% Parameters defined by user
 
 % Export directories
-regAbrev = 'MC'; % Abbreviation of region name
+regAbrev = 'MHI'; % Abbreviation of region name
 GDrive = 'L';     % GDrive drive
-HYCOM_saveDir_Local = 'I:\BellHopOutputs\GOM'; % Local save directory on your machine for HYCOM data
+% HYCOM_saveDir_Local = 'I:\BellHopOutputs\GOM'; % Local save directory on your machine for HYCOM data
+HYCOM_saveDir_Local = 'C:\Users\Selene.Fregosi\Documents\PropaMod\HYCOM_oceanState';
 % HYCOM_saveDir_Final = [GDrive ':\My Drive\PropagationModeling\HYCOM_data\' regAbrev]; % Final GDrive save directory for HYCOM data
 % SSP_saveDir =         [GDrive ':\My Drive\PropagationModeling\SSPs\' regAbrev]; % Final GDrive save directory for SSPs
-HYCOM_saveDir_Final = ['I:\BellHopOutputs\GOM']; % For Baja_GI
-SSP_saveDir =         ['I:\BellHopOutputs\GOM']; % For Baja_GI
+HYCOM_saveDir_Final = ['C:\Users\Selene.Fregosi\Documents\PropaMod\HYCOM_oceanState'];
+SSP_saveDir =         ['C:\Users\Selene.Fregosi\Documents\PropaMod\SSPs']; 
 
 % Site Data: Path to Excel file with your sites' latitudes and longitudes. Use the Excel template in the repository.
-siteCoordsFile = 'I:\BellHopOutputs\GOM\SiteCoords_Template.xlsx';
+siteCoordsFile = 'C:\Users\Selene.Fregosi\Documents\PropaMod\SiteCoords_gliders_MHI.xlsx';
 
 % Range of data to download [Be mindful of the deepest bathymetry available
 % in this region]
-LatRange = [26 28];     % in degrees N (-80 S to 90 N). In order of S->N.
-LonRange = [-92 -90];   % in degrees E (-180 W to 180 E). In order of W->E.
+LatRange = [16 25];     % in degrees N (-80 S to 90 N). In order of S->N.
+LonRange = [-161 -150];   % in degrees E (-180 W to 180 E). In order of W->E.
 
 % Effort Period
-Month_Start = '2014-07';  % First month of study period. Format as yyyy-MM.
-Month_End = '2014-08';    % Final month of study period. Format as yyyy-MM.
+Month_Start = '2022-04';  % First month of study period. Format as yyyy-MM.
+Month_End = '2022-04';    % Final month of study period. Format as yyyy-MM.
 
 plotInProcess = 1; % Monitor plotted SSPs as they are generated? 1=Y, 0=N. Program will run slower if this is on.
 %% Load site coordinates
@@ -61,8 +62,10 @@ hycom_sampleMonths(Month_Start, Month_End, HYCOM_saveDir_Local, HYCOM_saveDir_Fi
 MonthStart = [Month_Start(1:4) Month_Start(6:7)];
 MonthEnd = [Month_End(1:4) Month_End(6:7)];
 fileNames_all = ls(fullfile(HYCOM_saveDir_Final)); % File name to match. No need to modify this line.
+fileNames_all = cellstr(fileNames_all);
 fileNames_all(contains(fileNames_all, 'hycom', 'IgnoreCase', true),:) = [];
 fileNames = fileNames_all(find(contains(fileNames_all,MonthStart)):find(contains(fileNames_all,MonthEnd),1,'last'),:);
+fileNames = char(fileNames);
 
 fileDatetimes = string(fileNames(:,1:11));
 [~, file_sortOrder] = sort(fileDatetimes);
@@ -122,7 +125,7 @@ for k = 1:2:length(fileNames(:,1))
     set(gcf,'Position',[50 50 1500 700])
     end
     
-    for i=1:length(siteAbrev)
+    for i=1:size(siteAbrev, 1)
         numdepths = nan(1,length(depthlist));
         
         nearlats = knnsearch(D.Latitude,Lat(1),'K',4); %find closest 4 latitude values
@@ -136,10 +139,10 @@ for k = 1:2:length(fileNames(:,1))
         end
         
         if plotInProcess == 1
-        subplot(1,length(siteAbrev),i, 'Parent',plottimept_sup)
+        subplot(1,size(siteAbrev, 1),i, 'Parent',plottimept_sup)
         plot(numdepths, -depthlist,'-.')
         ylim([-3200 0])
-        title(char(siteAbrev(i,:)))
+        title(char(siteAbrev(i,:)), 'Interpreter', 'none')
         if i == 1
             ylabel('Depth (m)')
         else
@@ -186,21 +189,21 @@ end
 
 %% Interpolate full-depth SSPs and export data for each site
 
-for b = 1:length(siteAbrev)         % Generate subfolders for each site if they don't exist yet
+for b = 1:size(siteAbrev, 1)         % Generate subfolders for each site if they don't exist yet
     if ~exist(fullfile(SSP_saveDir, siteAbrev(b,:)), 'dir')
         mkdir(fullfile(SSP_saveDir, siteAbrev(b,:)))
     end
 end
 
-for b = 1:length(siteAbrev)
+for b = 1:size(siteAbrev, 1)
     Site = siteAbrev(b,:);
     
     TotMean = mean(cat(3, MoMeans.M01, MoMeans.M02,MoMeans.M03,MoMeans.M04,MoMeans.M05,MoMeans.M06,...
-        MoMeans.M07,MoMeans.M08,MoMeans.M09,MoMeans.M10,MoMeans.M11,MoMeans.M12), 3); % Average all 12 calendar months
+        MoMeans.M07,MoMeans.M08,MoMeans.M09,MoMeans.M10,MoMeans.M11,MoMeans.M12), 3, 'omitnan'); % Average all 12 calendar months
     % Averages the 12 month averages instead of averaging all the
     % individual months, since some of the 12 months may be less represented
     TotStd = std(cat(3, MoMeans.M01, MoMeans.M02,MoMeans.M03,MoMeans.M04,MoMeans.M05,MoMeans.M06,...
-        MoMeans.M07,MoMeans.M08,MoMeans.M09,MoMeans.M10,MoMeans.M11,MoMeans.M12), 0, 3); % SD of the 12 calendar months
+        MoMeans.M07,MoMeans.M08,MoMeans.M09,MoMeans.M10,MoMeans.M11,MoMeans.M12), 0, 3, 'omitnan'); % SD of the 12 calendar months
     
     TotMeanfd = [(0:5000).' nan(1,5001).']; % Make an array for the full depth
     TotMeanfd((depthlist+1),2) = TotMean(:,b); % Bring in site-specific data
@@ -212,9 +215,9 @@ for b = 1:length(siteAbrev)
     writetable(SSPT, [SSP_saveDir,'\', Site,'\', Site, '_SSP_Mean','.xlsx']) % Save overall average SSP
     disp(['Average annual SSP saved for ' Site])
     
-    figure(b)
+    figure(b+200)
     plot(SSPT.SS,-SSPT.Depth)
-    title(siteAbrev(b,:))
+    title(siteAbrev(b,:), 'Interpreter', 'none')
     xlim([1450,1560])
     set(gcf,'Position',[170*(b-1) 50 170 700])
     
@@ -224,7 +227,7 @@ end
 
 testmean = nan(12,size(siteAbrev,1));
 for month = 1:12
-    testmean(month,:) = mean(MoMeans.(['M',num2str(sprintf('%02d', month))])([23 25 27:33],1:length(siteAbrev)));
+    testmean(month,:) = mean(MoMeans.(['M',num2str(sprintf('%02d', month))])([23 25 27:33],1:size(siteAbrev, 1)), 'omitnan');
 end
 
 extremeMonths = nan(length(siteAbrev(1,:)),2);
